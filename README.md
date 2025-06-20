@@ -1,14 +1,44 @@
-# YouTube Video Downloader (macOS App)
+# YouTube Video Downloader
 
-This is a simple macOS application built with Python and Tkinter to download YouTube videos using `yt-dlp`.
+This repository contains two versions of a YouTube video downloader:
 
-## Features
+1. **Desktop App (macOS)** - Built with Python and Tkinter
+2. **Web App** - Built with Streamlit for browser-based access
+
+## 🌐 Streamlit Web App
+
+The modern, web-based version with advanced features:
+
+- **Multi-URL support** with real-time progress tracking
+- **Thread-safe architecture** with robust completion detection
+- **Beautiful UI** with progress bars, download speed, and ETA
+- **Advanced debugging** and error handling
+- **Custom download paths** and ZIP export
+
+### Quick Start (Web App)
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the Streamlit app
+streamlit run streamlit_app.py
+```
+
+Then open your browser to `http://localhost:8501`
+
+---
+
+## 🖥️ Desktop App (macOS)
+
+The original desktop application built with Python and Tkinter to download YouTube videos using `yt-dlp`.
+
+### Features
 
 - Download single or multiple YouTube videos (comma-separated URLs).
 - Choose a custom download directory.
 - View download progress and status messages.
 
-## Prerequisites
+### Prerequisites
 
 - Python 3 (usually pre-installed on macOS, or can be installed from [python.org](https://www.python.org/))
 - `pip` (Python package installer, usually comes with Python)
@@ -18,7 +48,7 @@ This is a simple macOS application built with Python and Tkinter to download You
   brew install ffmpeg
   ```
 
-## Setup
+### Setup
 
 1.  **Clone or download this repository/code.**
 
@@ -40,7 +70,7 @@ This is a simple macOS application built with Python and Tkinter to download You
     ```
     *Alternatively, if you prefer to install `yt-dlp` globally or manage it yourself, you can do so via pip (`pip install yt-dlp`) or Homebrew (`brew install yt-dlp`). The application will try to use the `yt-dlp` command available in your system's PATH. Similarly, ensure `ffmpeg` is in your PATH if installed manually.* 
 
-## Running the Application
+### Running the Desktop Application
 
 1.  **Ensure your virtual environment is activated** (if you created one):
     ```bash
@@ -52,7 +82,7 @@ This is a simple macOS application built with Python and Tkinter to download You
     python3 youtube_downloader.py
     ```
 
-## How to Use
+### How to Use (Desktop App)
 
 1.  Launch the application.
 2.  Enter one or more YouTube video URLs in the input field. If entering multiple URLs, separate them with commas (e.g., `https://www.youtube.com/watch?v=VIDEO_ID_1, https://www.youtube.com/watch?v=VIDEO_ID_2`).
@@ -97,9 +127,12 @@ To create a standalone `.app` bundle that can be run on other Macs without needi
     **Important Notes for `PyInstaller`:**
     *   **`yt-dlp` and `tkinter`:** Because we are using `yt-dlp` as a direct Python import and `tkinter` is part of the standard library (once `python-tk` is installed for your Python), `PyInstaller` should be able to find and bundle them correctly.
     *   **Bundled `ffmpeg`/`ffprobe`:** By using `--add-binary`, `ffmpeg` and `ffprobe` are now included within your `.app` bundle. `yt-dlp` (when used as a library) should be able to detect and use these bundled versions, making your application more self-contained. The application will look for these in the same directory as the main executable within the bundle.
-    *   **Testing:** After building, test the `.app` bundle (found in the `dist` directory) thoroughly on your machine and, if possible, on another Mac to ensure it works as expected.
 
 4.  **Locate the App:**
     The standalone application (`YouTubeDownloader.app`) will be in the `dist` subdirectory created by `PyInstaller`.
 
 This process bundles your Python script and its Python dependencies into a distributable application.
+
+## License
+
+Open source project - feel free to contribute and improve!
