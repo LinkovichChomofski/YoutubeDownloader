@@ -467,6 +467,10 @@ def download_videos(urls, download_path):
                 
         except Exception as e:
             add_debug_info(f"Error during file analysis: {e}")
+            
+        # Handle permission errors
+        if not os.access(download_path, os.W_OK):
+            PROGRESS_QUEUE.put(('log', f"❌ Permission denied: Cannot write to {download_path}"), block=False)
         
     except Exception as e:
         add_debug_info(f"Critical error in download_videos: {str(e)}")
@@ -503,6 +507,69 @@ def create_zip_download():
     
     zip_buffer.seek(0)
     return zip_buffer.getvalue()
+
+def validate_download_path(path):
+    """Validate and fix download path permissions"""
+    try:
+        # Expand user paths like ~/Downloads
+        path = os.path.expanduser(path)
+        
+        # Check if path exists
+        if not os.path.exists(path):
+            try:
+                os.makedirs(path, exist_ok=True)
+                return path, f"✅ Created directory: {path}"
+            except PermissionError:
+                return None, f"❌ Permission denied: Cannot create directory {path}"
+            except Exception as e:
+                return None, f"❌ Cannot create directory: {e}"
+        
+        # Check if it's a directory
+        if not os.path.isdir(path):
+            return None, f"❌ Path is not a directory: {path}"
+        
+        # Test write permissions by creating a temporary file
+        test_file = os.path.join(path, ".streamlit_write_test.tmp")
+        try:
+            with open(test_file, 'w') as f:
+                f.write("test")
+            os.remove(test_file)
+            return path, f"✅ Directory is writable: {path}"
+        except PermissionError:
+            return None, f"❌ Permission denied: Cannot write to {path}"
+        except Exception as e:
+            return None, f"❌ Cannot write to directory: {e}"
+            
+    except Exception as e:
+        return None, f"❌ Path validation error: {e}"
+
+def get_safe_download_paths():
+    """Get a list of safe download paths to try"""
+    paths = []
+    
+    # User's Downloads folder
+    downloads = os.path.join(os.path.expanduser("~"), "Downloads")
+    paths.append(downloads)
+    
+    # User's Desktop
+    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+    paths.append(desktop)
+    
+    # User's Documents
+    documents = os.path.join(os.path.expanduser("~"), "Documents")
+    paths.append(documents)
+    
+    # Current working directory
+    paths.append(os.getcwd())
+    
+    # System temp directory
+    paths.append(tempfile.gettempdir())
+    
+    # App-specific temp directory
+    app_temp = os.path.join(tempfile.gettempdir(), "streamlit_youtube_downloader")
+    paths.append(app_temp)
+    
+    return paths
 
 def main():
     st.set_page_config(
@@ -550,22 +617,57 @@ def main():
     with st.sidebar:
         st.header("⚙️ Settings")
         
-        # Download path selection
-        download_path = st.text_input(
-            "Download Path",
-            value=os.path.join(os.path.expanduser("~"), "Downloads"),
-            help="Enter the path where videos should be downloaded"
-        )
+        # Path selection with common options
+        st.subheader("📁 Download Location")
         
-        # Create directory if it doesn't exist
-        if download_path and not os.path.exists(download_path):
-            try:
-                os.makedirs(download_path, exist_ok=True)
-                st.success(f"✅ Created directory: {download_path}")
-            except Exception as e:
-                st.error(f"❌ Cannot create directory: {e}")
-                download_path = tempfile.gettempdir()
-                st.warning(f"Using temporary directory: {download_path}")
+        # Get safe paths for dropdown
+        safe_paths = get_safe_download_paths()
+        path_options = []
+        path_labels = []
+        
+        for path in safe_paths:
+            validated_path, message = validate_download_path(path)
+            if validated_path:
+                path_options.append(validated_path)
+                if "Downloads" in path:
+                    path_labels.append(f"📥 Downloads Folder ({path})")
+                elif "Desktop" in path:
+                    path_labels.append(f"🖥️ Desktop ({path})")
+                elif "Documents" in path:
+                    path_labels.append(f"📄 Documents ({path})")
+                elif "tmp" in path.lower() or "temp" in path.lower():
+                    path_labels.append(f"🗂️ Temporary Folder ({path})")
+                else:
+                    path_labels.append(f"📂 {path}")
+        
+        # Dropdown for safe paths
+        if path_options:
+            selected_index = st.selectbox(
+                "Choose a safe download location:",
+                range(len(path_options)),
+                format_func=lambda x: path_labels[x],
+                help="Select from verified writable directories"
+            )
+            download_path = path_options[selected_index]
+        else:
+            st.error("❌ No writable directories found!")
+            download_path = tempfile.gettempdir()
+        
+        # Manual path input (advanced users)
+        with st.expander("🔧 Custom Path (Advanced)"):
+            custom_path = st.text_input(
+                "Custom Download Path",
+                placeholder="Enter custom path...",
+                help="Only use if you need a specific directory"
+            )
+            
+            if custom_path:
+                validated_custom, message = validate_download_path(custom_path)
+                if validated_custom:
+                    download_path = validated_custom
+                    st.success(message)
+                else:
+                    st.error(message)
         
         st.info(f"📁 Current download path: `{download_path}`")
         
@@ -602,7 +704,7 @@ def main():
                 if current.get('status') == 'downloading':
                     st.progress(current.get('percent', 0) / 100, f"Current: {current.get('percent', 0):.1f}%")
                     st.caption(f"📁 {current.get('filename', 'Unknown')}")
-                    st.caption(f"🔽 {current.get('downloaded', '0 B')} / {current.get('total', 'Unknown')}")
+                    st.caption(f"📊 {current.get('downloaded', '0 B')} / {current.get('total', 'Unknown')}")
                     st.caption(f"🚀 {current.get('speed', '0 B/s')} | ⏱️ ETA: {current.get('eta', '--:--')}")
                 elif current.get('status') == 'preparing':
                     st.info("🔄 Preparing download...")
