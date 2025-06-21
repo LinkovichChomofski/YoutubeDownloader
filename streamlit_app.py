@@ -571,6 +571,14 @@ def get_safe_download_paths():
     
     return paths
 
+def is_running_on_streamlit_cloud():
+    """
+    Returns True if the app is running on Streamlit Community Cloud.
+    A common way to check is by looking at the user's home directory.
+    """
+    return os.path.expanduser("~") == "/home/appuser"
+
+
 def main():
     st.set_page_config(
         page_title="YouTube Video Downloader",
@@ -616,61 +624,71 @@ def main():
     # Sidebar for settings and debugging
     with st.sidebar:
         st.header("⚙️ Settings")
-        
-        # Path selection with common options
-        st.subheader("📁 Download Location")
-        
-        # Get safe paths for dropdown
-        safe_paths = get_safe_download_paths()
-        path_options = []
-        path_labels = []
-        
-        for path in safe_paths:
-            validated_path, message = validate_download_path(path)
-            if validated_path:
-                path_options.append(validated_path)
-                if "Downloads" in path:
-                    path_labels.append(f"📥 Downloads Folder ({path})")
-                elif "Desktop" in path:
-                    path_labels.append(f"🖥️ Desktop ({path})")
-                elif "Documents" in path:
-                    path_labels.append(f"📄 Documents ({path})")
-                elif "tmp" in path.lower() or "temp" in path.lower():
-                    path_labels.append(f"🗂️ Temporary Folder ({path})")
-                else:
-                    path_labels.append(f"📂 {path}")
-        
-        # Dropdown for safe paths
-        if path_options:
-            selected_index = st.selectbox(
-                "Choose a safe download location:",
-                range(len(path_options)),
-                format_func=lambda x: path_labels[x],
-                help="Select from verified writable directories"
+
+        # Conditionally show path options based on environment
+        if is_running_on_streamlit_cloud():
+            st.subheader("📁 Download Location")
+            st.info(
+                "**Running in the Cloud ☁️**\n\n"
+                "Files are downloaded on the server and then provided to you as a ZIP file. "
+                "Your browser will save it to your standard 'Downloads' folder."
             )
-            download_path = path_options[selected_index]
-        else:
-            st.error("❌ No writable directories found!")
+            # On cloud, always use a temporary directory
             download_path = tempfile.gettempdir()
-        
-        # Manual path input (advanced users)
-        with st.expander("🔧 Custom Path (Advanced)"):
-            custom_path = st.text_input(
-                "Custom Download Path",
-                placeholder="Enter custom path...",
-                help="Only use if you need a specific directory"
-            )
+        else:
+            # --- LOCAL EXECUTION ---
+            st.subheader("📁 Download Location (Local)")
+            st.info("You are running this app locally. You can choose a download folder.")
             
-            if custom_path:
-                validated_custom, message = validate_download_path(custom_path)
-                if validated_custom:
-                    download_path = validated_custom
-                    st.success(message)
-                else:
-                    st.error(message)
-        
-        st.info(f"📁 Current download path: `{download_path}`")
-        
+            # Get safe paths for dropdown
+            safe_paths = get_safe_download_paths()
+            path_options = []
+            path_labels = []
+            
+            for path in safe_paths:
+                validated_path, _ = validate_download_path(path)
+                if validated_path:
+                    path_options.append(validated_path)
+                    if "Downloads" in path:
+                        path_labels.append(f"📥 Downloads Folder ({path})")
+                    elif "Desktop" in path:
+                        path_labels.append(f"🖥️ Desktop ({path})")
+                    elif "Documents" in path:
+                        path_labels.append(f"📄 Documents ({path})")
+                    else:
+                        path_labels.append(f"📂 {path}")
+            
+            # Dropdown for safe paths
+            if path_options:
+                selected_index = st.selectbox(
+                    "Choose a download location:",
+                    range(len(path_options)),
+                    format_func=lambda x: path_labels[x],
+                    help="Select from verified writable directories"
+                )
+                download_path = path_options[selected_index]
+            else:
+                st.error("❌ No writable directories found!")
+                download_path = tempfile.gettempdir()
+            
+            # Manual path input (advanced users)
+            with st.expander("🔧 Custom Path (Advanced)"):
+                custom_path = st.text_input(
+                    "Custom Download Path",
+                    placeholder="Enter custom path...",
+                    help="Only use if you need a specific directory"
+                )
+                
+                if custom_path:
+                    validated_custom, message = validate_download_path(custom_path)
+                    if validated_custom:
+                        download_path = validated_custom
+                        st.success(message)
+                    else:
+                        st.error(message)
+            
+            st.info(f"📁 Current download path: `{download_path}`")
+
         # Debug mode toggle
         debug_mode = st.checkbox("🐛 Debug Mode", value=True, help="Show detailed debugging information")
         
